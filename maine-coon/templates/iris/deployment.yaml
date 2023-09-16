@@ -1,0 +1,19 @@
+apiVersion: serving.yatai.ai/v2alpha1
+kind: BentoDeployment
+metadata:
+  name: {{ .Values.iris.name }}-service
+  namespace: {{ .Values.namespace }}
+spec:
+  bento: {{ .Values.iris.bento.name }}-{{ .Values.iris.bento.tag }}
+  ingress:
+    enabled: {{ .Values.iris.ingress.enabled }}
+  resources:
+  {{- .Values.iris.resources | toYaml | nindent 4}}
+  autoscaling:
+  {{- .Values.iris.autoscaling | toYaml | nindent 4}}
+  runners:
+    - name: {{ .Values.iris.name }}-runner
+      resources:
+      {{- .Values.iris.runners.resources | toYaml | nindent 8}}
+      autoscaling:
+      {{- .Values.iris.runners.autoscaling | toYaml | nindent 8}}

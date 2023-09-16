@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: maine-coon
+  namespace: argocd
+spec:
+  revisionHistoryLimit: 4
+  source:
+    repoURL: 'https://gitlab.com/yatai/bentoml-yatai.git'
+    path: maine-coon/
+    targetRevision: 'HEAD'
+    helm:
+      releaseName: maine-coon
+      valueFiles:
+      - values.yaml
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: maine-coon
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - Replace=true

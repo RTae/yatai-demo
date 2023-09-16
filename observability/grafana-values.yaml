@@ -1,0 +1,28 @@
+adminUser: admin
+adminPassword: 123qweasdzxc
+persistence:
+  enabled: true
+  storageClass: standard
+  capacity:
+    size: 32Gi
+sidecar:
+  dashboards:
+    enabled: true
+  datasources:
+    enabled: true
+  notifiers:
+    enabled: true
+
+ingress:
+  enabled: true
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/proxy-body-size: 200m
+    acme.cert-manager.io/http01-edit-in-place: "true"
+  hosts:
+  - grafana.rtae.cloud
+  tls:
+  - secretName: grafana-tls
+    hosts:
+      - grafana.rtae.cloud

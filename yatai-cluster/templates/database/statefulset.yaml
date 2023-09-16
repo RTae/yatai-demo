@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.database.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.database.name }}
+  serviceName: {{ .Values.database.name }}
+  replicas: {{ .Values.database.statefulset.replicas }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.database.name }}
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.database.statefulset.terminationGracePeriodSeconds }}
+      containers:
+      - name: {{ .Values.database.name }}
+        imagePullPolicy: {{ .Values.database.statefulset.pullPolicy }}
+        image: {{ .Values.database.statefulset.image }}:{{ .Values.database.statefulset.tag }}
+        ports:
+        {{- range .Values.database.statefulset.ports }}
+        - containerPort: {{ .containerPort }}
+        {{- end }}
+        env:
+          {{- range .Values.database.statefulset.envFromSecert }}
+          - name: {{ .name }}
+            valueFrom:
+              secretKeyRef:
+                name: {{ .secretName }}
+                key: {{ .secretKey }}
+          {{- end }}
+          - name: TZ
+            value: "Asia/Bangkok"
+          - name: PGDATA
+            value: "/var/lib/postgresql/data/pgdata"
+        volumeMounts:
+        - name: data-volume
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            memory: {{ .Values.database.statefulset.resources.requests.memory }}
+            cpu: {{ .Values.database.statefulset.resources.requests.cpu }}
+  volumeClaimTemplates:
+  - metadata:
+      name: data-volume
+    spec:
+      accessModes:
+      {{- range .Values.database.persistent.accessModes }}
+      - {{ . }}
+      {{- end }}
+      storageClassName: {{ .Values.database.persistent.storageClass }}
+      resources:
+        requests:
+          storage: {{ .Values.database.persistent.capacity.size }}

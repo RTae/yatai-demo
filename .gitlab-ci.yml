@@ -1,0 +1,43 @@
+stages: 
+  - build
+  - configure
+
+train-build:
+  stage: build
+  image: python:3.11
+  before_script:
+    - pip install poetry
+    - cd iris
+    - poetry config virtualenvs.create false && poetry install
+  script:
+    - python train.py
+    - bentoml yatai login --api-token ${YATAI_TOKEN} --endpoint ${YATAI_ENDPOINT}
+    - bentoml build --version $CI_COMMIT_SHORT_SHA --push
+
+# Update GitOps Configuration
+update-manifests:
+  stage: configure
+  image: 
+    name: alpine/git:v2.32.0
+    entrypoint: ["/bin/sh", "-c"]
+  before_script:
+    - apk update
+    - apk add py3-pip
+    - apk add jq
+    - git config --global user.email "git@gitlabrunner.com"
+    - git config --global user.name "Gitlab Runner"
+    - pip install yq
+    - yq
+  script:
+    - git clone "https://oauth2:${GITLAB_CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" "infra"
+    - cd infra
+    - echo "Update the image tag with $CI_COMMIT_SHORT_SHA (automated by GitLab CI)"
+    - yq -i -y --arg tag "$CI_COMMIT_SHORT_SHA" '.iris.bento.tag=$tag' maine-coon/values.yaml
+    - git add .
+    - |-
+      if [ "$(git status --porcelain | wc -l)" -gt "0" ]; then
+        git status
+        git commit -m "Update the image tag with $CI_COMMIT_SHORT_SHA (automated by GitLab CI)"
+        git pull origin "${CI_DEFAULT_BRANCH}"
+        git push origin "${CI_DEFAULT_BRANCH}" -o ci.skip
+      fi

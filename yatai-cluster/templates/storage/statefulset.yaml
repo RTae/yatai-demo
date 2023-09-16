@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.storage.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.storage.name }}
+  serviceName: {{ .Values.storage.name }}
+  replicas: {{ .Values.storage.statefulset.replicas }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.storage.name }}
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.storage.statefulset.terminationGracePeriodSeconds }}
+      containers:
+      - name: {{ .Values.storage.name }}
+        imagePullPolicy: {{ .Values.storage.statefulset.pullPolicy }}
+        image: {{ .Values.storage.statefulset.image }}:{{ .Values.storage.statefulset.tag }}
+        command:
+        - /bin/bash
+        - -c
+        args: 
+        - minio server /data --address ":80" --console-address :9001
+        ports:
+        {{- range .Values.storage.statefulset.ports }}
+        - containerPort: {{ .containerPort }}
+        {{- end }}
+        env:
+          {{- range .Values.storage.statefulset.envFromSecert }}
+          - name: {{ .name }}
+            valueFrom:
+              secretKeyRef:
+                name: {{ .secretName }}
+                key: {{ .secretKey }}
+          {{- end }}
+        volumeMounts:
+        - name: data-volume
+          mountPath: /data
+        resources:
+          requests:
+            memory: {{ .Values.storage.statefulset.resources.requests.memory }}
+            cpu: {{ .Values.storage.statefulset.resources.requests.cpu }}
+  volumeClaimTemplates:
+  - metadata:
+      name: data-volume
+    spec:
+      accessModes:
+      {{- range .Values.storage.persistent.accessModes }}
+      - {{ . }}
+      {{- end }}
+      storageClassName: {{ .Values.storage.persistent.storageClass }}
+      resources:
+        requests:
+          storage: {{ .Values.storage.persistent.capacity.size }}

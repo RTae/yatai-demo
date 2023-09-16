@@ -1,0 +1,4 @@
+grafana:
+  enabled: false
+  forceDeployDatasources: true
+  forceDeployDashboards: true

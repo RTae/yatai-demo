@@ -1,0 +1,132 @@
+namespace: yatai-system
+database:
+  name: database
+  statefulset:
+    replicas: 1
+    pullPolicy: IfNotPresent
+    image: postgres
+    tag: 14
+    terminationGracePeriodSeconds: 10
+    resources:
+      requests:
+        cpu: 1024m
+        memory: 2Gi
+    envFromSecert:
+      - name: POSTGRES_DB
+        secretName: db-secret
+        secretKey: ROOT_DB
+      - name: POSTGRES_USER
+        secretName: db-secret
+        secretKey: ROOT_USER
+      - name: POSTGRES_PASSWORD
+        secretName: db-secret
+        secretKey: ROOT_PASSWORD
+    ports:
+      - containerPort: 5432
+  service:
+    type: ClusterIP
+    ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+      name: postgresql
+  persistent:
+    storageClass: standard
+    accessModes:
+      - ReadWriteOnce
+    capacity:
+      size: 32Gi
+
+storage:
+  name: storage
+  statefulset:
+    replicas: 1
+    pullPolicy: IfNotPresent
+    image: minio/minio
+    tag: RELEASE.2023-07-21T21-12-44Z
+    terminationGracePeriodSeconds: 10
+    resources:
+      requests:
+        cpu: 1024m
+        memory: 2Gi
+    envFromSecert:
+      - name: MINIO_ROOT_USER
+        secretName: storage-secret
+        secretKey: STORAGE_USERNAME
+      - name: MINIO_ROOT_PASSWORD
+        secretName: storage-secret
+        secretKey: STORAGE_PASSWORD
+    ports:
+      - containerPort: 80
+      - containerPort: 9001
+  service:
+    type: ClusterIP
+    ports:
+      - port: 80
+        targetPort: 80
+        protocol: TCP
+        name: http
+      - port: 9001
+        targetPort: 9001
+        protocol: TCP
+        name: console
+  persistent:
+    storageClass: standard
+    accessModes:
+      - ReadWriteOnce
+    capacity:
+      size: 16Gi
+  
+ingress:
+  domain: rtae.cloud
+  tls:
+    - secretName: yatai
+      hosts:
+        - yatai
+  rules:
+    - host: yatai
+      paths:
+        - path: /
+          pathType: Prefix
+          serviceName: yatai-cluster
+          servicePort: 80
+
+yatai:
+  postgresql:
+    host: database
+    passwordExistingSecretName: 'db-secret'
+    passwordExistingSecretKey: 'ROOT_PASSWORD'
+
+  s3:
+    endpoint: 'storage'
+    region: 'foo'
+    bucketName: 'yatai'
+    secure: false
+    accessKeyExistingSecretName: 'storage-secret'
+    accessKeyExistingSecretKey: 'STORAGE_USERNAME'
+    secretKeyExistingSecretName: 'storage-secret'
+    secretKeyExistingSecretKey: 'STORAGE_PASSWORD'
+
+yatai-image-builder:
+  dockerRegistry:
+    server: 'asia-southeast1-docker.pkg.dev/rtae-playground/mlop-cluster-gar'
+    username: '_json_key_base64'
+    passwordExistingSecretName: 'docker-registry-secret'
+    passwordExistingSecretKey: 'REGISTRY_PASSWORD'
+    secure: true
+    bentoRepositoryName: yatai-bentos
+  yataiSystem:
+    serviceAccountName: "yatai-cluster"
+  yatai:
+    endpoint: http://yatai-cluster.yatai-system.svc.cluster.local
+
+yatai-deployment:
+  layers:
+    network:
+      ingressClass: nginx
+      ingressAnnotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+        acme.cert-manager.io/http01-edit-in-place: "true"
+  bentoDeploymentNamespaces: ['maine-coon']
+  yataiSystem:
+    serviceAccountName: "yatai-cluster"

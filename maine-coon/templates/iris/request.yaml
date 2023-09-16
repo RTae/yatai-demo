@@ -1,0 +1,7 @@
+apiVersion: resources.yatai.ai/v1alpha1
+kind: BentoRequest
+metadata:
+  name: {{ .Values.iris.bento.name }}-{{ .Values.iris.bento.tag }}
+  namespace: {{ .Values.namespace }}
+spec:
+  bentoTag: iris_classifier:{{ .Values.iris.bento.tag }}
